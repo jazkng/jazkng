@@ -18,7 +18,7 @@
 
 | 产品 | 解决什么问题 |
 | :--- | :--- |
-| **GeraiQ** | 为小贩与餐饮档口提供点餐、收银与经营工具；Android 当前处于 Alpha 测试阶段。 |
+| **GeraiQ** | 为小贩与餐饮档口提供点餐、收银与经营工具；Android 当前处于 Alpha 测试阶段。<!-- GERAIQ_STATUS:START -->最新版本 `Alpha`<!-- GERAIQ_STATUS:END --> |
 | **WashQ** | 围绕洗车门店的服务记录、顾客与会员管理，简化日常操作。 |
 | **KiraQ** | 分账与账目计算，让共同开销更容易理清。 |
 
@@ -28,7 +28,7 @@
 | :--- | :--- | :--- |
 | **Kim Lian Kee ERP** | 金莲记业务管理系统 | — |
 | **Eagerise Dealer App** | 产品展示、经销商查询与客户线索管理；公开项目使用静态示例数据。 | [项目介绍与源码](https://github.com/jazkng/eagerise-dealer-app) |
-| **85 Mega Car Care** | 洗车门店的服务、顾客与会员管理 | [品牌网站](https://85mega.com) |
+| **85 Mega Car Care** | 洗车门店的服务、顾客与会员管理；<!-- 85MEGA_STATUS:START -->最新版本 `Active`<!-- 85MEGA_STATUS:END --> | [品牌网站](https://85mega.com) |
 
 ### 技术与做事方式
 

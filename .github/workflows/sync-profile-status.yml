@@ -1,0 +1,64 @@
+name: Auto Update Profile README
+
+on:
+  schedule:
+    # 每天马来西亚时间 01:00 (UTC 17:00) 自动同步一次
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [update-profile]
+
+permissions:
+  contents: write
+
+jobs:
+  sync-profile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout jazkng/jazkng
+        uses: actions/checkout@v4
+
+      - name: Fetch latest public/private release status
+        id: status
+        env:
+          GH_TOKEN: ${{ secrets.PROFILE_SYNC_TOKEN }}
+        run: |
+          GERAIQ_TAG=$(gh api repos/jazkng/geraiq/releases/latest --jq '.tag_name' 2>/dev/null || echo "Alpha")
+          MEGA_TAG=$(gh api repos/jazkng/85mega/releases/latest --jq '.tag_name' 2>/dev/null || echo "Active")
+          echo "geraiq_tag=$GERAIQ_TAG" >> "$GITHUB_OUTPUT"
+          echo "mega_tag=$MEGA_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Update README.md markers
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          readme = Path("README.md")
+          text = readme.read_text(encoding="utf-8")
+
+          geraiq_tag = "${{ steps.status.outputs.geraiq_tag }}"
+          mega_tag = "${{ steps.status.outputs.mega_tag }}"
+
+          # 仅替换 README 中预设的状态标记或版本文本，保持其余排版不变
+          text = re.sub(
+              r"<!-- GERAIQ_STATUS:START -->.*?<!-- GERAIQ_STATUS:END -->",
+              f"<!-- GERAIQ_STATUS:START -->最新版本 `{geraiq_tag}`<!-- GERAIQ_STATUS:END -->",
+              text,
+              flags=re.S,
+          )
+          text = re.sub(
+              r"<!-- 85MEGA_STATUS:START -->.*?<!-- 85MEGA_STATUS:END -->",
+              f"<!-- 85MEGA_STATUS:START -->最新版本 `{mega_tag}`<!-- 85MEGA_STATUS:END -->",
+              text,
+              flags=re.S,
+          )
+
+          readme.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || (git add README.md && git commit -m "chore: auto-sync profile status [skip ci]" && git push)
