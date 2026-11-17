@@ -1,0 +1,19 @@
+# Local configuration and private credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+*service-account*.json
+*-credentials.json
+
+# Local checks and operating-system files
+__pycache__/
+*.py[cod]
+.venv/
+*.log
+.DS_Store
+Thumbs.db
