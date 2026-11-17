@@ -2,63 +2,55 @@ name: Auto Update Profile README
 
 on:
   schedule:
-    # 每天马来西亚时间 01:00 (UTC 17:00) 自动同步一次
+    # 01:00 in Malaysia (UTC+8).
     - cron: '0 17 * * *'
   workflow_dispatch:
   repository_dispatch:
     types: [update-profile]
+  pull_request:
+    paths: [scripts/**, tests/**, .github/workflows/sync-profile-status.yml]
+  push:
+    branches: [main]
+    paths: [scripts/**, tests/**, .github/workflows/sync-profile-status.yml]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  sync-profile:
+  check:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout jazkng/jazkng
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -v
 
-      - name: Fetch latest public/private release status
-        id: status
+  sync-profile:
+    if: github.event_name != 'pull_request' && github.event_name != 'push'
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: sync-profile
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify release tags and update README
         env:
           GH_TOKEN: ${{ secrets.PROFILE_SYNC_TOKEN }}
+        run: python3 scripts/sync_profile.py
+      - name: Commit verified changes
         run: |
-          GERAIQ_TAG=$(gh api repos/jazkng/geraiq/releases/latest --jq '.tag_name' 2>/dev/null || echo "Alpha")
-          MEGA_TAG=$(gh api repos/jazkng/85mega/releases/latest --jq '.tag_name' 2>/dev/null || echo "Active")
-          echo "geraiq_tag=$GERAIQ_TAG" >> "$GITHUB_OUTPUT"
-          echo "mega_tag=$MEGA_TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Update README.md markers
-        run: |
-          python3 - <<'PY'
-          import re
-          from pathlib import Path
-
-          readme = Path("README.md")
-          text = readme.read_text(encoding="utf-8")
-
-          geraiq_tag = "${{ steps.status.outputs.geraiq_tag }}"
-          mega_tag = "${{ steps.status.outputs.mega_tag }}"
-
-          # 仅替换 README 中预设的状态标记或版本文本，保持其余排版不变
-          text = re.sub(
-              r"<!-- GERAIQ_STATUS:START -->.*?<!-- GERAIQ_STATUS:END -->",
-              f"<!-- GERAIQ_STATUS:START -->最新版本 `{geraiq_tag}`<!-- GERAIQ_STATUS:END -->",
-              text,
-              flags=re.S,
-          )
-          text = re.sub(
-              r"<!-- 85MEGA_STATUS:START -->.*?<!-- 85MEGA_STATUS:END -->",
-              f"<!-- 85MEGA_STATUS:START -->最新版本 `{mega_tag}`<!-- 85MEGA_STATUS:END -->",
-              text,
-              flags=re.S,
-          )
-
-          readme.write_text(text, encoding="utf-8")
-          PY
-
-      - name: Commit and push if changed
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || (git add README.md && git commit -m "chore: auto-sync profile status [skip ci]" && git push)
+          if ! git diff --quiet -- README.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "chore: sync verified release tags [skip ci]"
+            git push
+          fi
